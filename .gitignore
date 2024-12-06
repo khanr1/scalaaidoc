@@ -1,0 +1,44 @@
+# bloop and metals
+.bloop
+.bsp
+.envrc
+
+# metals
+.metals
+project/metals.sbt
+
+# vs code
+.vscode
+
+# sbt
+project/plugins/project/
+project/project/
+project/target/
+src_managed/
+target/
+
+# eclipse
+.cache
+.classpath
+.project
+.settings
+.worksheet
+bin/
+build/
+
+# intellij idea
+.idea
+*.iml
+*.ipr
+*.iws
+*.log
+
+# mac
+.DS_Store
+
+
+# other?
+.cache-main
+.history
+.scala_dependencies
+*.class
