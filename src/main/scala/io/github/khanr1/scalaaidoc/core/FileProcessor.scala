@@ -1,10 +1,15 @@
-// The documentation in this file has been generated via Generative AI
+//The documentation in this file has been generated via Generative AI
 
+/** Root package for core utilities in the Scala AI documentation library.
+  *
+  * This package contains the foundational abstractions and implementations for processing Scala
+  * files in a concurrent and efficient manner using FS2 and Cats Effect.
+  */
 package io.github.khanr1.scalaaidoc.core
 
 import cats.{Show, Eq, ApplicativeThrow}
 import cats.effect.Concurrent
-import cats.syntax.all.*
+import cats.syntax.all._
 import fs2.io.file.{Files, Path}
 import fs2.Stream
 import fs2.text
@@ -12,92 +17,108 @@ import fs2.text.utf8
 import io.circe.{Encoder, Decoder}
 import org.typelevel.log4cats.Logger
 
-/** Trait representing a file processor capable of processing Scala files. This includes functionality
-  * for reading individual files or all Scala files in a directory.
+/** Trait representing a file processor capable of processing Scala files.
+  *
+  * The trait provides methods to read content from a single Scala file or multiple `.scala` files
+  * in a directory. It ensures concurrent, streaming-safe processing using FS2 and typeclass
+  * constraints provided by Cats Effect.
   *
   * @tparam F
-  *   The effect type. Commonly, this will be an `IO` or similar effect type that provides
-  *   concurrent, resource-safe computation, such as those from Cats Effect.
+  *   The effect type. Usually, this would be `IO` or similar. The typeclass requires `Concurrent`
+  *   to ensure safe and efficient file processing in a concurrent environment.
   */
 trait FileProcessor[F[_]: Concurrent]:
 
-  /** Reads the content of a Scala file at a specified path.
+  /** Reads the content of a Scala file located at the specified path.
     *
-    * The function reads the file's content as a stream of `FileContent`, a specialized
-    * type that wraps a string representing the file's content.
+    * The function outputs a stream of `FileContent` containing the file's content. Using a
+    * streaming API helps in processing large files efficiently without loading the entire content
+    * into memory.
     *
     * @param path
-    *   The path to the Scala file to be read.
+    *   The path to the `.scala` file which needs to be read.
     * @return
-    *   A stream of `FileContent` containing the file's content.
+    *   A stream of `FileContent` objects corresponding to the file's content.
     */
   def readScalaFile(path: Path): fs2.Stream[F, FileContent]
 
-  /** Reads the content of all Scala files within a given directory (and its subdirectories).
+  /** Reads the content of all `.scala` files in a specified directory.
     *
-    * This function filters files with `.scala` extensions and reads the content of each one,
-    * returning a stream of tuples where each tuple consists of the `Path` and its corresponding `FileContent`.
+    * This function navigates through the provided directory path to find all `.scala` files
+    * recursively, reads their content, and returns a stream of file paths paired with their
+    * `FileContent`.
     *
     * @param path
-    *   The path of the directory to search for Scala files.
+    *   The directory path to search for `.scala` files.
     * @return
-    *   A stream of tuples, with each tuple containing the file's `Path` and `FileContent`.
+    *   A stream of tuples `(Path, FileContent)`, where each tuple contains the path to a `.scala`
+    *   file and its content.
     */
   def readAllScalaFiles(path: Path): fs2.Stream[F, (Path, FileContent)]
 
-/** Companion object for `FileProcessor`, providing a factory method to create instances of the trait. */
+/** Companion object providing functionality to create and manage `FileProcessor` instances.
+  *
+  * This object supplies a factory method that constructs a `FileProcessor` implementation using
+  * FS2, Cats Effect, and Typelevel's logging abstraction (`Logger`).
+  */
 object FileProcessor:
 
-  /** Constructs a new instance of `FileProcessor` using the provided typeclass instances.
+  /** Creates a new `FileProcessor` instance for the effect type `F`.
+    *
+    * This function uses implicit instances of the `Files`, `Logger`, and `Concurrent` typeclasses
+    * to manage file IO operations, log processing activities, and ensure safe concurrency.
     *
     * @tparam F
-    *   The effect type, commonly an `IO` or similar.
-    * @param F
-    *   The implicit `Files`, `Logger`, and `Concurrent` typeclass instances required for file processing,
-    *   logging, and concurrency.
+    *   The effect type, typically `IO` or similar, with Cats Effect concurrency capabilities.
     * @return
-    *   A new instance of `FileProcessor`.
+    *   A new `FileProcessor` instance.
     */
   def make[F[_]: Files: Logger: Concurrent](): FileProcessor[F] =
     new FileProcessor[F] {
 
-      /** Reads and decodes the contents of a file, mapping it to a `FileContent` instance.
+      /** Reads and decodes the content of the given file path to `FileContent`.
         *
-        * This method uses FS2 to perform file reads in a streaming manner, ensuring resource safety and scalability.
+        * This method uses streaming to read file data in chunks and decode it to `.utf8` text. It
+        * ensures that large files can be processed efficiently without consuming excessive memory.
+        * Additionally, the read operation logs the time taken to read the file.
         *
         * @param path
         *   The path to the file to be read.
         * @return
-        *   A stream of `FileContent` containing the decoded content of the file.
+        *   A stream of `FileContent` objects wrapping the file's content.
         */
       private def decodeAndMapToFileContent(path: Path): Stream[F, FileContent] =
-        val start = System.nanoTime()
+        val start = System.nanoTime() // Record the start time for logging duration
         Files[F]
           .readAll(path)
           .through(text.utf8.decode)
           .map(FileContent(_))
           .evalTap(_ => Logger[F].info(s"File read in ${(System.nanoTime() - start) / 1e6} ms"))
 
-      /** Filters a stream of file paths to only include Scala files (files with a `.scala` extension).
+      /** Filters a stream of paths to include only Scala files.
+        *
+        * The function checks the file paths for `.scala` extensions and excludes other types.
         *
         * @param stream
-        *   The stream of file paths to be filtered.
+        *   The input stream containing file paths.
         * @return
-        *   A filtered stream containing only paths to Scala files.
+        *   A filtered stream of paths only containing `.scala` files.
         */
       private def filterScalaFiles(stream: Stream[F, Path]): Stream[F, Path] =
         stream.filter(path => path.toString.endsWith(".scala"))
 
-      /** Reads the content of a single Scala file at the provided path. Validates that the file has a `.scala` extension
-        * before attempting to read its content.
+      /** Reads the content of a single `.scala` file.
+        *
+        * Before reading, the function validates that the file's path has a `.scala` extension. If
+        * the extension is invalid, an error stream is raised.
         *
         * @param path
-        *   The path to the Scala file to be read.
+        *   The path to the `.scala` file.
         * @return
-        *   A stream of `FileContent` containing the content of the file.
+        *   A stream of `FileContent` containing the file's data if it has a valid extension.
         */
       override def readScalaFile(path: Path): fs2.Stream[F, FileContent] =
-        // Validates that the file has a `.scala` extension before proceeding
+        // Validate `.scala` extension
         if path.extName == ".scala" then decodeAndMapToFileContent(path)
         else
           fs2.Stream
@@ -108,25 +129,27 @@ object FileProcessor:
             )
             .handleErrorWith(e => fs2.Stream.raiseError(e))
 
-      /** Reads all Scala files from the provided directory path. Walks through the directory structure recursively,
-        * filters for Scala files (.scala), and reads their content. Errors if the provided path is not a directory.
+      /** Processes all `.scala` files within a directory and its subdirectories.
+        *
+        * The function first checks if the given path is a directory, then traverses it to find all
+        * `.scala` files, reads their content, and pairs the file path with its `FileContent`. If
+        * the provided path is not a directory, an error stream is raised.
         *
         * @param path
-        *   The directory path to search for Scala files.
+        *   The directory path to search for `.scala` files.
         * @return
-        *   A stream of tuples, where each tuple contains a file `Path` and its corresponding `FileContent`.
+        *   A stream of tuples `(Path, FileContent)` for each `.scala` file found.
         */
       override def readAllScalaFiles(path: Path): fs2.Stream[F, (Path, FileContent)] =
-        // Logs the initial check to see if the provided path is a directory
+        // Log directory validation
         fs2.Stream.eval(Logger[F].info(s"Checking if the given path is a directory")) *>
           fs2.Stream.eval { Files[F].isDirectory(path) }.flatMap {
             case true =>
               Files[F]
-                .walk(path)
-                .through(filterScalaFiles)
+                .walk(path) // Recursively walk through the directory
+                .through(filterScalaFiles) // Filter only `.scala` files
                 .flatMap { path =>
                   decodeAndMapToFileContent(path).map(content => (path, content))
-
                 }
                 .evalTap { (path, content) =>
                   Logger[F].info(s"Starting to process file ${path.fileName}")
@@ -139,59 +162,80 @@ object FileProcessor:
           }
     }
 
-/** Opaque type representing the content of a file as a string. This abstraction allows encapsulation
-  * of file content while still treating it as a string internally.
+/** Opaque type representing the content of a file as a string.
+  *
+  * This abstraction wraps a string and allows specific extension methods and utilities to be
+  * defined on it. It enforces stronger type safety for file content manipulations.
   */
 opaque type FileContent = String
 
-/** Companion object for `FileContent` providing constructors and utility functions for working
-  * with file contents.
+/** Companion object for the opaque type `FileContent`.
+  *
+  * Provides utility methods for creating and manipulating instances of `FileContent`, along with
+  * typeclass instances for JSON encoding, decoding, comparison, and string representation.
   */
 object FileContent:
 
   /** Constructs a `FileContent` instance from a string.
     *
     * @param name
-    *   The string content of the file.
+    *   The raw string representing the file content.
     * @return
-    *   A `FileContent` instance wrapping the provided string.
+    *   A new `FileContent` wrapping the provided string.
     */
   def apply(name: String): FileContent = name
 
-  /** Provides extension methods for `FileContent`. */
+  /** Provides extension methods for the `FileContent` opaque type. */
   extension (fileContent: FileContent)
-
-    /** Returns the underlying string content of the `FileContent`.
+    /** Retrieves the underlying string value from the `FileContent`.
       *
       * @return
-      *   The string content of the file.
+      *   The raw string value contained in the `FileContent`.
       */
     def value: String = fileContent
 
-  /** JSON encoder instance for `FileContent` using Circe. Encodes the content as a JSON string. */
+  /** Implicit Circe encoder for `FileContent`.
+    *
+    * Encodes the `FileContent` into a JSON string.
+    */
   given encoder: Encoder[FileContent] = fileContent => Encoder.encodeString.apply(fileContent.value)
-  /** JSON decoder instance for `FileContent` using Circe. Decodes file content from a JSON string. */
+
+  /** Implicit Circe decoder for `FileContent`.
+    *
+    * Decodes a JSON string into a `FileContent` instance.
+    */
   given decoder: Decoder[FileContent] = Decoder.decodeString.map(apply)
-  /** Equality instance for `FileContent` for comparisons, using universal equality. */
+
+  /** Implicit `Eq` instance for `FileContent`.
+    *
+    * Enables equality comparisons between `FileContent` instances.
+    */
   given eqFileContent: Eq[FileContent] = Eq.fromUniversalEquals
-  /** Show instance for `FileContent`. Converts the content to its string representation for display. */
+
+  /** Implicit `Show` instance for `FileContent`.
+    *
+    * Converts the `FileContent` to a readable string representation for display purposes.
+    */
   given showName: Show[FileContent] = Show.fromToString
 
-/** Enum defining various types of errors that may occur during file processing. */
+/** Enum representing various types of errors that can occur during file processing. */
 enum FileProcessorError extends Throwable:
 
-  /** Error indicating an invalid file path. This typically occurs when the path provided
-    * is not a `.scala` file or does not exist.
+  /** Error raised for an invalid file path.
+    *
+    * This error is typically raised when a path does not represent a `.scala` file or points to a
+    * non-existent location.
     *
     * @param message
-    *   The error message describing the issue.
+    *   A detailed description of the error.
     */
   case InvalidPathError(message: String) extends FileProcessorError
 
-  /** Error indicating that the provided path is not a directory. This typically occurs
-    * when attempting to process Scala files using a non-directory path.
+  /** Error raised if the provided path is not a directory.
+    *
+    * This error occurs when attempting to process files on a path that isn't a directory.
     *
     * @param message
-    *   The error message describing the issue.
+    *   A detailed description of the error.
     */
   case DirectoryError(message: String) extends FileProcessorError

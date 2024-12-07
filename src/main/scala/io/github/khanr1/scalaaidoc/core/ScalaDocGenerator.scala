@@ -1,4 +1,6 @@
-// The documentation in this file has been generated via Generative AI
+//The documentation in this file has been generated via Generative AI
+
+// Additional comments and ScalaDoc annotations have been added for better understanding and explanation.
 
 package io.github.khanr1.scalaaidoc.core
 
@@ -10,140 +12,201 @@ import fs2.io.file.{Path, Files, Flags, CopyFlags, CopyFlag}
 import io.github.khanr1.scalaopenai.{OpenAI, OpenAIService, Roles}
 import io.github.khanr1.scalaopenai.chat.Message
 import org.typelevel.log4cats.Logger
+import cats.syntax.validated
 
-/** Trait representing a ScalaDoc generator service.
-  * 
-  * The ScalaDoc generator is designed to create enriched documentation for 
-  * a provided Scala source file.
+/** Trait defining the contract for generating ScalaDocs and project documentation for Scala source files.
+  *
+  * This trait uses AI to generate documentation with three main functions:
+  * 1. Generating ScalaDocs for a single file.
+  * 2. Generating ScalaDocs for all files in a project.
+  * 3. Creating a summarized README describing the project.
   *
   * @tparam F
-  *   The effect type, usually a monad supporting asynchronous and effectful computations.
+  *   A higher-kinded type representing an effect type (e.g., IO), which supports asynchronous computations and resource safety.
   */
 trait ScalaDocGenerator[F[_]]:
 
-  /** Generates ScalaDoc for the specified file.
+  /** Enhances a given Scala source file with improved ScalaDocs.
     *
-    * This method reads the Scala source file at the given `path`, processes its
-    * content, and produces enriched ScalaDoc documentation with additional inline comments.
-    * 
+    * The function reads the content of the given file, processes it through an AI-based engine
+    * (e.g., OpenAI), generates richer Scaladoc comments, and replaces the file with the updated version.
+    *
     * @param path
-    *   The `Path` of the Scala source file whose documentation is to be generated.
+    *   Path to the Scala source file to be processed.
     * @return
-    *   A stream producing the result of the ScalaDoc generation process,
-    *   where the result might involve file outputs or logs.
+    *   Stream effect representing the result of the operation with no emitted elements.
     */
   def generateScalaDoc(path: Path): fs2.Stream[F, Nothing]
 
-/** Companion object that provides mechanisms for creating and configuring instances 
-  * of `ScalaDocGenerator`.
+  /** Creates a README.md file summarizing the overall project based on its Scala source files.
+    *
+    * This function analyzes all Scala source files in the given project, extracts relevant information,
+    * and compiles it into a Markdown-based README file describing key details like features and usage instructions.
+    *
+    * @param path
+    *   Path to the root directory of the project whose README is generated.
+    * @return
+    *   Stream effect representing the generation process with no emitted elements.
+    */
+  def generateReadMe(path: Path): fs2.Stream[F, Nothing]
+
+  /** Enhances all Scala files in the specified directory with improved ScalaDocs.
+    *
+    * The function iterates through every Scala source file within a given project directory,
+    * refines their documentation using AI-based tooling, and updates the files in place.
+    *
+    * @param path
+    *   Base directory containing Scala source files.
+    * @return
+    *   Stream effect representing the result of processing all files with no emitted elements.
+    */
+  def generateAllScalaDoc(path: Path): fs2.Stream[F, Nothing]
+
+/** Companion object providing a concrete implementation of the `ScalaDocGenerator` trait.
+  * It integrates dependencies such as OpenAI to handle interactions with external AI APIs.
   */
 object ScalaDocGenerator:
 
-  /** Constructs a new instance of `ScalaDocGenerator`.
+  /** Constructs a `ScalaDocGenerator` instance, integrating OpenAI and file I/O functionalities.
     *
-    * The method uses the OpenAI API for content generation based on an input
-    * Scala file. The implementation relies on effect type `F` which must 
-    * support logging, file manipulation, and asynchronous processing.
-    * 
+    * The created instance can handle tasks such as reading and writing code files, invoking OpenAI APIs
+    * for generating ScalaDocs and project documentation, and logging results or errors.
+    *
     * @param apiKey
-    *   A secret key for authenticating with the OpenAI API service.
+    *   Authentication token required to interact with the OpenAI API.
+    * @param F
+    *   Implicit evidence for effect capabilities such as logging, asynchronous behavior, and file handling.
     * @tparam F
-    *   The effect type, often a type like `IO` from Cats Effect or other similar monads.
+    *   Effect type used in this implementation (e.g., IO).
     * @return
-    *   A constructed and ready-to-use `ScalaDocGenerator` instance.
+    *   A concrete instance of `ScalaDocGenerator` for use in ScalaDoc generation tasks.
     */
   def make[F[_]: Logger: Files: Async](apiKey: String): ScalaDocGenerator[F] =
     new ScalaDocGenerator[F] {
-      
-      /** Processes the given file and generates ScalaDoc using an AI-powered service.
+
+      /** Implements ScalaDoc generation for a single file.
+        *
+        * Reads the Scala source file, enhances its documentation using AI (via OpenAI's API), and updates the file.
         *
         * @param path
-        *   The file path where the Scala source code is located.
-        * @return 
-        *   A stream that reads the file content, communicates with OpenAI for processing, 
-        *   and writes the enhanced documentation back to the file or temporary output.
+        *   The file path pointing to the Scala source file.
         */
       override def generateScalaDoc(path: Path): fs2.Stream[F, Nothing] =
 
-        /** Generates a prompt for the OpenAI service based on the file's content.
-          *
-          * @param content
-          *   An instance holding the content of the Scala source file.
-          * @return
-          *   A detailed prompt guiding the generative AI to add comments and documentation 
-          *   for the file.
-          */
+        // Generates a prompt for the AI model to produce enhanced documentation for the given file.
         def prompt(content: FileContent): String = s"""
-          |You are an AI assistant that specializes in Scala programming. 
-          |Your task is to generate detailed and accurate ScalaDoc for the provided Scala code and add comments
-          |where you think suitable to make the code more readable. You should not touch the code itself just the comments and the doc.
-          |Please do not erase bracket; parenthesis and curly braket. Make sure that they are all closed
-          |When you do so you need to put a comment on the
-          |top of the file saying:
-          |
-          |
-          |//The documentation in this file has been generated via Generative AI
-          |
-          |Your output should be raw text and should not contain marks like : ```
-
+          |You are an AI assistant that specializes in Scala programming.
+          |Your task is to generate detailed and accurate ScalaDoc for the provided Scala code and add comments.
+          |You should not touch the code itself, only add comments and edit the existing ScalaDoc.
+          |Please do not erase brackets, parentheses, or curly braces—they must remain properly closed.
+          |You also need to add the comment "//The documentation in this file has been generated via Generative AI" at the top of the file.
           |
           |Here is the code: ${content.value}
-      """
+        """
 
-        // Creates a stream resource for interacting with the OpenAI service.
-        val streamedOpenAIResource: fs2.Stream[F, OpenAIService[F]] =
+        // Create a stream to initialize the OpenAI service resource.
+        lazy val streamedOpenAIResource: fs2.Stream[F, OpenAIService[F]] =
           fs2.Stream.resource(OpenAI.make[F](apiKey))
 
-        // Reads the content of the target Scala file as a stream.
+        // Reads the content of the specified file.
         val inputFileStream: fs2.Stream[F, FileContent] =
           FileProcessor
             .make[F]()
             .readScalaFile(path)
 
-        /** Processes the content of the file and invokes the OpenAI service for augmented documentation.
-          *
-          * This process streams log messages to track progress and handles errors gracefully.
-          *
-          * @return
-          *   A stream containing the result of the enriched content generation.
-          */
+        // Defines the processing pipeline for enhancing file content via AI.
         def processContent: fs2.Stream[F, String] =
           streamedOpenAIResource
             .flatMap { service =>
               inputFileStream
                 .flatMap { content =>
-                  val start = System.nanoTime() // Record processing start time
                   service
                     .chatCompletion(messages = List(Message(Roles.User, prompt(content))))
-                    .map(_.getResponseMessage) // Extracts the response message from the AI service
-                    .evalTap { chunk =>
-                      Logger[F].info(s"Streaming in progress... Received chunk: ${chunk.take(50)}")
-                    }
+                    .map(_.getResponseMessage) // Extract the generated documentation.
                 }
             }
             .handleErrorWith(e =>
               fs2.Stream.eval(
-                Logger[F].error(e.getMessage())
-              ) *> fs2.Stream.empty // Log the error and produce an empty stream
+                Logger[F].error(e.getMessage()) // Log any errors.
+              ) *> fs2.Stream.empty
             )
 
-        // Defines the path for storing temporary output before it is applied to the original file.
+        // Temporary file path for intermediate output, ensuring safety.
         val outputPath = Path(path.toString + ".tmp")
 
-        // Handles the integration of processed content back to the output file.
         processContent
-          .through(text.utf8.encode) // Encode content into UTF-8 format
-          .through(Files[F].writeAll(outputPath)) // Write enriched output to a temporary file
+          .through(text.utf8.encode) // Encode content as UTF-8.
+          .through(Files[F].writeAll(outputPath)) // Write intermediate results to the temporary file.
           .onFinalizeCase {
             case Succeeded =>
-              // If process completes successfully, replace the original file with enriched content
-              (Files[F].move(outputPath, path, CopyFlags(CopyFlag.ReplaceExisting))) *>
-                Files[F].deleteIfExists(outputPath) *> 
-                Logger[F].info(s"Successfully replaced ${path.fileName} with processed content")
+              // Replace the original file if processing succeeds.
+              Files[F].move(outputPath, path, CopyFlags(CopyFlag.ReplaceExisting)) *>
+                Files[F].deleteIfExists(outputPath) *>
+                Logger[F].info(s"Successfully updated ScalaDoc for ${path.fileName}")
             case _ =>
-              // If processing fails, clean up temporary files and log a warning
-              Files[F].deleteIfExists(outputPath) *> Logger[F].warn(
-                s"Processing failed"
-              )
+              // Clean up temporary files if something goes wrong.
+              Files[F].deleteIfExists(outputPath) *> 
+              Logger[F].warn(s"Failed to process ${path.fileName}")
           }
+
+      /** Implements README generation based on the contents of all Scala files in the project directory.
+        *
+        * @param path
+        *   Root directory of the Scala project.
+        */
+      override def generateReadMe(path: Path): Stream[F, Nothing] =
+
+        lazy val streamedOpenAIResource: fs2.Stream[F, OpenAIService[F]] =
+          fs2.Stream.resource(OpenAI.make[F](apiKey))
+
+        lazy val fileProcessor: FileProcessor[F] = FileProcessor.make[F]()
+
+        // Read all Scala files and combine their contents.
+        lazy val fileContent: Stream[F, String] =
+          fileProcessor
+            .readAllScalaFiles(path)
+            .map(_._2.value)
+            .intersperse("\n--- New file---\n") // Add separators between file contents.
+            .reduce(_ + _)
+
+        // Prompt for generating the README based on all gathered file contents.
+        def prompt(filescontent: String): String = s"""
+          |You are an AI assistant specializing in Scala programming.
+          |Your task is to create a high-quality README summarizing the entire project described by the following code:
+          |$filescontent
+        """
+
+        val processContent =
+          streamedOpenAIResource
+            .flatMap(service =>
+              fileContent
+                .map(prompt(_))
+                .flatMap(content =>
+                  service.chatCompletion(messages = List(Message(Roles.User, content)))
+                )
+                .map(_.getResponseMessage) // Get the README content.
+            )
+            .handleErrorWith(e =>
+              fs2.Stream.eval(
+                Logger[F].error(e.getMessage()) // Log any errors.
+              ) *> fs2.Stream.empty
+            )
+
+        processContent
+          .through(text.utf8.encode) // Encode to UTF-8 bytes.
+          .through(Files[F].writeAll(Path("./README.md"), Flags.Write)) // Write the README to a file.
+
+      /** Processes all files in the project directory, generating enriched ScalaDocs for each.
+        *
+        * @param path
+        *   Base path of the project containing Scala source files.
+        */
+      override def generateAllScalaDoc(path: Path): Stream[F, Nothing] =
+        val inputFileStream: fs2.Stream[F, (Path, FileContent)] =
+          FileProcessor
+            .make[F]()
+            .readAllScalaFiles(path)
+
+        // Process each file's path and content to enhance its ScalaDocs.
+        inputFileStream.flatMap((path, content) => generateScalaDoc(path))
     }

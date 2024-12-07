@@ -7,7 +7,7 @@ ThisBuild / organization := "io.github.khanr1"
 lazy val `scalaai-doc` =
   project
     .in(file("."))
-    .settings(name := "ScalaAI-Doc", sbtPlugin := true)
+    .settings(name := "ScalaAI-Doc")
     .settings(dependencies)
 
 lazy val dependencies = Seq(

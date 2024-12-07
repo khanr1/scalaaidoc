@@ -1,97 +1,134 @@
+# Scala AI Documentation Generator
 
-# ScalaAI-Doc: AI-Powered Scala Documentation Generator
+## Project Description
 
-ScalaAI-Doc is a robust and intelligent tool for processing and enriching Scala source files with detailed and meaningful documentation. It leverages generative AI capabilities to create professional-grade ScalaDoc for your projects. 
+**Scala AI Documentation Generator** is a library designed to enhance the documentation process for Scala projects using AI. It leverages OpenAI's APIs to generate detailed and enriched ScalaDoc and README files for Scala codebases. The solution aims to improve code readability, maintainability, and ease of understanding for developers by providing comprehensive documentation, all done programmatically in an automated fashion.
 
-## Features
+This library is particularly useful in scenarios where large codebases need clear and coherent documentation, saving manual effort and time.
 
-- **File Processing:** Reads and processes individual or multiple Scala files from a directory.
-- **AI-Powered Documentation:** Enriches source files with high-quality ScalaDoc and inline comments.
-- **Resource Safety:** Ensures concurrent, safe operations using FS2 and Cats Effect.
-- **Error Handling:** Handles invalid paths and other common errors gracefully.
-- **Seamless Integration:** Processes files and integrates enriched documentation back into the original or temporary files.
+---
 
-## Modules
+## Key Features
 
-### 1. `FileProcessor`
-This module provides functionality to:
-- Read the content of a single Scala file.
-- Recursively read all `.scala` files in a directory and its subdirectories.
+1. **AI-Generated ScalaDoc**:
+   - Automatically enhances Scala source files with enriched ScalaDoc.
+   - Adds inline comments for improved code clarity without modifying the code itself.
+   - Ensures all syntax details like brackets and parentheses remain untouched.
 
-**Key Traits and Methods:**
-- `readScalaFile(path: Path): Stream[F, FileContent]`: Reads content from a specific `.scala` file.
-- `readAllScalaFiles(path: Path): Stream[F, (Path, FileContent)]`: Reads all Scala files in a directory and subdirectories.
+2. **README Generation**:
+   - Automatically summarizes the entire Scala project into a detailed `README.md` file.
+   - Extracts project structure, feature descriptions, dependencies, and usage guidelines from the codebase.
 
-### 2. `ScalaDocGenerator`
-This module communicates with OpenAI's API to generate enriched ScalaDoc for a given Scala source file.
+3. **Streaming and Error Handling**:
+   - Uses FS2 streams for efficient and scalable handling of files and interactions with OpenAI.
+   - Incorporates fine-grained logging for tracking progress, making it easy to debug and monitor process outputs.
+   - Graceful error handling ensures smooth processing and provides meaningful error messages upon failure.
 
-**Key Traits and Methods:**
-- `generateScalaDoc(path: Path): Stream[F, Nothing]`: Processes a file and generates ScalaDoc using an AI-powered service.
+4. **File and Directory Support**:
+   - Reads individual Scala files or processes entire directories of Scala files.
+   - Automatically detects `.scala` files and ensures proper processing of valid Scala files only.
 
-### 3. `Main`
-The entry point of the application. It initializes the required components, sets up logging, and orchestrates the file processing and ScalaDoc generation.
+5. **Configurable and Extensible**:
+   - Written in a modular style using typeclasses for easy integration with other functional libraries.
+   - OpenAI authentication allows customized API keys for secure interaction.
 
-## How It Works
+---
 
-1. **File Reading:**
-   The `FileProcessor` reads the content of Scala source files, ensuring only `.scala` files are processed.
+## Dependencies
+
+This project is built with the following tools and libraries:
+
+1. **Scala 3**:
+   - Leverages Scala's latest language capabilities for expressive and functional programming.
+
+2. **Cats Effect**:
+   - Provides concurrency primitives like `Async`, `Concurrent` for effectful computations.
+
+3. **FS2**:
+   - Enables functional stream processing for efficient handling of large files and I/O.
+
+4. **OpenAI Service**:
+   - Integrates the OpenAI API for interacting with ChatGPT to generate ScalaDocs and README files.
+
+5. **Log4cats**:
+   - Provides structured and type-safe logging for fine-grained tracking.
+
+6. **Circe**:
+   - Used for encoding and decoding JSON data when working with file content.
+
+### Additional Build and Configuration Information:
+- Requires an API key for OpenAI services, passed as a string parameter when creating the `ScalaDocGenerator` instance.
+- Handles file operations with sanity checks and ensures directory traversal for recursive use cases.
+
+---
+
+## How To Run
+
+### Prerequisites:
+- **Scala 3.x**: The project uses Scala 3 and requires a compatible environment for compilation and execution.
+- **sbt**: Ensure `sbt` is installed on your machine for dependency management and building the project.
+- **OpenAI API Key**: You need a valid API key to interact with the OpenAI service.
+
+---
+
+### Generate ScalaDoc:
+1. Instantiate the `ScalaDocGenerator` with necessary typeclasses and OpenAI API key:
+   ```scala
+   import cats.effect.IO
+   import org.typelevel.log4cats.slf4j.Slf4jLogger
+   import fs2.io.file.Files
    
-2. **Documentation Generation:**
-   Using OpenAI's generative AI, `ScalaDocGenerator` creates enriched documentation based on the content of the files.
-
-3. **Output Integration:**
-   The processed documentation is written to temporary files and replaces the original files upon successful completion.
-
-## Setup and Installation
-
-### Prerequisites
-- **Scala 3**
-- **Cats Effect, FS2, Circe**
-- **OpenAI API Key**
-- **SLF4J for Logging**
-
-### Installation
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/your-repo/scalaai-doc.git
+   implicit val logger = Slf4jLogger.getLogger[IO]
+   implicit val files = Files[IO]
+   val apiKey = "your-openai-api-key"
+   
+   val generator = ScalaDocGenerator.make[IO](apiKey)
    ```
-2. Navigate to the project directory:
-   ```bash
-   cd scalaai-doc
+
+2. Invoke the `generateScalaDoc` method with the path to your Scala file:
+   ```scala
+   import fs2.io.file.Path
+   
+   val sourcePath = Path("path/to/your/scala/file.scala")
+   generator.generateScalaDoc(sourcePath).compile.drain.unsafeRunSync()
    ```
-3. Configure the OpenAI API key in the appropriate configuration file.
 
-4. Build the project using your preferred build tool (e.g., SBT).
+3. Check the updated Scala file for newly added ScalaDoc.
 
-### Running the Application
-Run the application from the command line:
-```bash
-sbt run
-```
+---
 
-## Code Example
+### Generate README:
+1. Use the same `ScalaDocGenerator` instance.
+   
+2. Invoke the `generateReadMe` method with the directory path where your Scala project resides:
+   ```scala
+   val projectDirPath = Path("path/to/your/project/root")
+   generator.generateReadMe(projectDirPath).compile.drain.unsafeRunSync()
+   ```
 
-```scala
-import io.github.khanr1.scalaaidoc.core.{FileProcessor, ScalaDocGenerator}
-import cats.effect.{IO, IOApp}
-import fs2.io.file.Path
+3. Look for the newly generated `README.md` file in the project root directory.
 
-object Main extends IOApp.Simple:
-  val run: IO[Unit] = {
-    val inputPath = Path("src/main/scala")
-    val fileProcessor = FileProcessor.make[IO]()
-    fileProcessor
-      .readAllScalaFiles(inputPath)
-      .flatMap { case (path, _) =>
-        val scalaDocGenerator = ScalaDocGenerator.make[IO]("your-api-key")
-        scalaDocGenerator.generateScalaDoc(path)
-      }
-      .compile
-      .drain
-  }
-```
+---
 
-## Contributing
-Contributions are welcome! Feel free to submit a pull request or open an issue for feature requests, bugs, or improvements.
+### Typical Usage Example:
+- Place your project or Scala files in a directory (e.g., `src/main/scala`).
+- Point the `ScalaDocGenerator` to individual files or the project directory to generate enriched docs and README with minimal manual intervention.
 
+---
 
+## Notable Configurations
+
+- **Temporary File Handling**:
+  Temporary files are written with `.tmp` extensions while processing is ongoing. On successful completion, they replace the target files.
+  
+- **Error Logging**:
+  Any errors during processing (e.g., invalid file paths or API failures) are logged and will not interrupt the overall process.
+
+- **Custom Streaming Approach**:
+  All reading and writing operations are done using data streams, making this approach efficient for large files or directories with many `.scala` files.
+
+---
+
+## Conclusion
+
+The **Scala AI Documentation Generator** is a powerful and efficient way to automate the documentation process for Scala projects, ensuring better code comprehension and reducing manual developer effort. With its seamless integration of FS2, Cats Effect, and OpenAI, the solution is highly scalable and robust, catering to both small and large-scale projects.
