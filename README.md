@@ -1,134 +1,204 @@
-# Scala AI Documentation Generator
+# scalaai-doc
 
-## Project Description
-
-**Scala AI Documentation Generator** is a library designed to enhance the documentation process for Scala projects using AI. It leverages OpenAI's APIs to generate detailed and enriched ScalaDoc and README files for Scala codebases. The solution aims to improve code readability, maintainability, and ease of understanding for developers by providing comprehensive documentation, all done programmatically in an automated fashion.
-
-This library is particularly useful in scenarios where large codebases need clear and coherent documentation, saving manual effort and time.
+`scalaai-doc` is a Scala-based application designed to automatically generate highly detailed and enriched ScalaDocs and README files for your Scala projects. This application leverages AI capabilities (via OpenAI API) to analyze, document, and describe your source code. It simplifies code documentation, ensuring better clarity, maintainability, and shareability across teams and projects.
 
 ---
 
-## Key Features
+## Features
 
-1. **AI-Generated ScalaDoc**:
-   - Automatically enhances Scala source files with enriched ScalaDoc.
-   - Adds inline comments for improved code clarity without modifying the code itself.
-   - Ensures all syntax details like brackets and parentheses remain untouched.
+### 1. **Enhanced Scala Documentation**
+   - Automatically generate rich and detailed ScalaDocs for individual files or entire project directories.
+   - Tailor-made ScalaDocs are added without modifying the actual code logic, enhancing only the documentation.
 
-2. **README Generation**:
-   - Automatically summarizes the entire Scala project into a detailed `README.md` file.
-   - Extracts project structure, feature descriptions, dependencies, and usage guidelines from the codebase.
+### 2. **README Generation**
+   - Summarizes your entire project by analyzing all Scala source files in a directory. 
+   - Produces a high-quality `README.md` file that contains key features, descriptions, and usage instructions for the project.
 
-3. **Streaming and Error Handling**:
-   - Uses FS2 streams for efficient and scalable handling of files and interactions with OpenAI.
-   - Incorporates fine-grained logging for tracking progress, making it easy to debug and monitor process outputs.
-   - Graceful error handling ensures smooth processing and provides meaningful error messages upon failure.
+### 3. **AI-Powered Insights**
+   - Uses the OpenAI API to ensure that generated documentation is of top-notch quality and human-readable in nature.
+   - Incorporates prompt engineering for effective communication with the AI.
 
-4. **File and Directory Support**:
-   - Reads individual Scala files or processes entire directories of Scala files.
-   - Automatically detects `.scala` files and ensures proper processing of valid Scala files only.
+### 4. **Stream-Based I/O for Efficiency**
+   - Built using FS2 and Cats Effect to ensure efficient and concurrent file processing.
+   - Handles both small and large projects effectively without exhausting system resources.
 
-5. **Configurable and Extensible**:
-   - Written in a modular style using typeclasses for easy integration with other functional libraries.
-   - OpenAI authentication allows customized API keys for secure interaction.
+### 5. **Configurable and Extendable**
+   - Easily configure your OpenAI API keys and customize the input paths to process your projects.
+   - Extendable architecture allows you to integrate it into your own tooling or CI workflows.
 
 ---
 
-## Dependencies
+## Installation
 
-This project is built with the following tools and libraries:
+### Prerequisites
+- Scala (version 3.x preferred)
+- SBT (Scala Build Tool)
+- OpenAI API key
 
-1. **Scala 3**:
-   - Leverages Scala's latest language capabilities for expressive and functional programming.
+### Setup
 
-2. **Cats Effect**:
-   - Provides concurrency primitives like `Async`, `Concurrent` for effectful computations.
+1. Clone the repository or include it as a dependency in your project.
 
-3. **FS2**:
-   - Enables functional stream processing for efficient handling of large files and I/O.
-
-4. **OpenAI Service**:
-   - Integrates the OpenAI API for interacting with ChatGPT to generate ScalaDocs and README files.
-
-5. **Log4cats**:
-   - Provides structured and type-safe logging for fine-grained tracking.
-
-6. **Circe**:
-   - Used for encoding and decoding JSON data when working with file content.
-
-### Additional Build and Configuration Information:
-- Requires an API key for OpenAI services, passed as a string parameter when creating the `ScalaDocGenerator` instance.
-- Handles file operations with sanity checks and ensures directory traversal for recursive use cases.
-
----
-
-## How To Run
-
-### Prerequisites:
-- **Scala 3.x**: The project uses Scala 3 and requires a compatible environment for compilation and execution.
-- **sbt**: Ensure `sbt` is installed on your machine for dependency management and building the project.
-- **OpenAI API Key**: You need a valid API key to interact with the OpenAI service.
-
----
-
-### Generate ScalaDoc:
-1. Instantiate the `ScalaDocGenerator` with necessary typeclasses and OpenAI API key:
-   ```scala
-   import cats.effect.IO
-   import org.typelevel.log4cats.slf4j.Slf4jLogger
-   import fs2.io.file.Files
-   
-   implicit val logger = Slf4jLogger.getLogger[IO]
-   implicit val files = Files[IO]
-   val apiKey = "your-openai-api-key"
-   
-   val generator = ScalaDocGenerator.make[IO](apiKey)
+   ```bash
+   git clone https://github.com/khanr1/scalaai-doc.git
+   cd scalaai-doc
    ```
 
-2. Invoke the `generateScalaDoc` method with the path to your Scala file:
-   ```scala
-   import fs2.io.file.Path
-   
-   val sourcePath = Path("path/to/your/scala/file.scala")
-   generator.generateScalaDoc(sourcePath).compile.drain.unsafeRunSync()
+2. Set up your OpenAI API credentials in a supported configuration source (e.g., environment variables, config file).
+
+3. Build the project using SBT:
+
+   ```bash
+   sbt compile
    ```
 
-3. Check the updated Scala file for newly added ScalaDoc.
+4. Execute the application:
 
----
-
-### Generate README:
-1. Use the same `ScalaDocGenerator` instance.
-   
-2. Invoke the `generateReadMe` method with the directory path where your Scala project resides:
-   ```scala
-   val projectDirPath = Path("path/to/your/project/root")
-   generator.generateReadMe(projectDirPath).compile.drain.unsafeRunSync()
+   ```bash
+   sbt run
    ```
 
-3. Look for the newly generated `README.md` file in the project root directory.
+---
+
+## Usage
+
+Once the application is running, you will be presented with an interactive menu:
+
+```text
+ Choose an Option: 
+ 1. Generate ScalaDoc
+ 2. Generate ReadMe.Md
+ 3. exit
+```
+
+### Features Accessible via Console
+
+1. **Generate ScalaDoc for Your Project**
+   - Select option `1` and the application will:
+     - Traverse the project directory.
+     - Analyze each Scala file and enhance its ScalaDoc with detailed AI-generated documentation.
+
+2. **Generate a README File for Your Project**
+   - Select option `2` to generate a `README.md` file that describes your project.
+
+3. **Exit the Application**
+   - Select option `3` to exit the interactive session.
+
+### Example Directory Structure
+Considering the following directory structure:
+
+```
+src/
+ └── main/
+     └── scala/
+         └── io/
+             └── github/
+                 └── khanr1/
+                     └── scalaaidoc/
+                         ├── core/
+                         │   ├── ScalaDocGenerator.scala
+                         │   └── FileProcessor.scala
+                         └── Main.scala
+```
+
+The application will:
+- Enhance documentation for files like `Main.scala`, `ScalaDocGenerator.scala`, and `FileProcessor.scala`.
+- Generate a `README.md` file summarizing the purpose and functionality of the entire project.
 
 ---
 
-### Typical Usage Example:
-- Place your project or Scala files in a directory (e.g., `src/main/scala`).
-- Point the `ScalaDocGenerator` to individual files or the project directory to generate enriched docs and README with minimal manual intervention.
+## Key Components
+
+### `ScalaDocGenerator`
+The core abstraction responsible for generating ScalaDocs and README files. This trait offers three main methods:
+1. `generateScalaDoc` - Enriches documentation for a single Scala file.
+2. `generateAllScalaDoc` - Processes all Scala files in a directory.
+3. `generateReadMe` - Produces a summarized README based on project files.
+
+### `FileProcessor`
+A utility trait that performs file I/O tasks, such as reading Scala files or traversing directories. It ensures efficient and streaming-safe file operations:
+- `readScalaFile` - Reads content for a single `.scala` file.
+- `readAllScalaFiles` - Recursively processes and gathers content for all `.scala` files in a given directory.
+
+### `Main`
+The entry point for the application:
+- Handles menu-driven workflows to trigger documentation generation and project summarization.
+- Incorporates error handling, proper logging, and prompts the user for appropriate tasks.
 
 ---
 
-## Notable Configurations
+## Implementation Overview
 
-- **Temporary File Handling**:
-  Temporary files are written with `.tmp` extensions while processing is ongoing. On successful completion, they replace the target files.
-  
-- **Error Logging**:
-  Any errors during processing (e.g., invalid file paths or API failures) are logged and will not interrupt the overall process.
+The application is built on these underlying technologies:
 
-- **Custom Streaming Approach**:
-  All reading and writing operations are done using data streams, making this approach efficient for large files or directories with many `.scala` files.
+1. **Cats Effect & FS2**
+   - Ensures robust functional programming patterns for concurrency, resource safety, and error handling.
+   - Streaming capabilities for efficient file reading and processing.
+
+2. **Log4Cats**
+   - Provides an abstraction for logging across the application, backed by SLF4J.
+
+3. **OpenAI Integration**
+   - Uses `ChatCompletion` endpoint to interact with OpenAI's GPT models for generating documentation based on code analysis.
 
 ---
 
-## Conclusion
+## Example Workflows
 
-The **Scala AI Documentation Generator** is a powerful and efficient way to automate the documentation process for Scala projects, ensuring better code comprehension and reducing manual developer effort. With its seamless integration of FS2, Cats Effect, and OpenAI, the solution is highly scalable and robust, catering to both small and large-scale projects.
+### **Scenario 1: Generating ScalaDoc for a Single File**
+The `ScalaDocGenerator.scala` file contains the following code snippet:
+
+```scala
+// Before Enhancement
+def generateScalaDoc(path: Path): fs2.Stream[F, Nothing] = {
+  // Reads a file and processes its content for documentation.
+}
+```
+
+After enhancement by the application:
+
+```scala
+// After Enhancement
+/** Implements ScalaDoc generation for a single file.
+  *
+  * Reads the Scala source file, enhances its documentation using AI (via OpenAI's API), and
+  * updates the file.
+  *
+  * @param path
+  *   The file path pointing to the Scala source file.
+  */
+def generateScalaDoc(path: Path): fs2.Stream[F, Nothing] = {
+  // Reads a file and processes its content for documentation.
+}
+```
+
+### **Scenario 2: Generating a Project-Wide README**
+For a project with multiple files, the application generates a structured `README.md` file summarizing:
+- Key features
+- Core components
+- Example usage scenarios
+
+---
+
+## Logging and Error Handling
+- Uses `Log4Cats` (`Slf4jLogger`) for logging at various stages like file read/write, error handling, and runtime diagnostics.
+- Custom error types in `FileProcessorError` classify potential runtime issues:
+  - `InvalidPathError` - Raised when a non-`.scala` file is processed.
+  - `DirectoryError` - Raised for invalid directory paths.
+
+---
+
+## Future Improvements
+- Multi-language support for non-English descriptions.
+- CI/CD integration to automate documentation generation in pipelines.
+- Enhanced prompt engineering to fine-tune results from the AI.
+
+---
+
+## Contributing
+Contributions are welcome via pull requests. Ensure to include tests and follow established coding conventions.
+
+---
+
+## License
+This project is licensed under the MIT License. See the LICENSE file for more details.

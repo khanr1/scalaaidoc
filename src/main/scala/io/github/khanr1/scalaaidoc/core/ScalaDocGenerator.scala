@@ -14,22 +14,24 @@ import io.github.khanr1.scalaopenai.chat.Message
 import org.typelevel.log4cats.Logger
 import cats.syntax.validated
 
-/** Trait defining the contract for generating ScalaDocs and project documentation for Scala source files.
+/** Trait defining the contract for generating ScalaDocs and project documentation for Scala source
+  * files.
   *
   * This trait uses AI to generate documentation with three main functions:
-  * 1. Generating ScalaDocs for a single file.
-  * 2. Generating ScalaDocs for all files in a project.
-  * 3. Creating a summarized README describing the project.
+  *   1. Generating ScalaDocs for a single file. 2. Generating ScalaDocs for all files in a project.
+  *      3. Creating a summarized README describing the project.
   *
   * @tparam F
-  *   A higher-kinded type representing an effect type (e.g., IO), which supports asynchronous computations and resource safety.
+  *   A higher-kinded type representing an effect type (e.g., IO), which supports asynchronous
+  *   computations and resource safety.
   */
 trait ScalaDocGenerator[F[_]]:
 
   /** Enhances a given Scala source file with improved ScalaDocs.
     *
     * The function reads the content of the given file, processes it through an AI-based engine
-    * (e.g., OpenAI), generates richer Scaladoc comments, and replaces the file with the updated version.
+    * (e.g., OpenAI), generates richer ScalaDoc comments, and replaces the file with the updated
+    * version.
     *
     * @param path
     *   Path to the Scala source file to be processed.
@@ -40,8 +42,9 @@ trait ScalaDocGenerator[F[_]]:
 
   /** Creates a README.md file summarizing the overall project based on its Scala source files.
     *
-    * This function analyzes all Scala source files in the given project, extracts relevant information,
-    * and compiles it into a Markdown-based README file describing key details like features and usage instructions.
+    * This function analyzes all Scala source files in the given project, extracts relevant
+    * information, and compiles it into a Markdown-based README file describing key details like
+    * features and usage instructions.
     *
     * @param path
     *   Path to the root directory of the project whose README is generated.
@@ -62,20 +65,21 @@ trait ScalaDocGenerator[F[_]]:
     */
   def generateAllScalaDoc(path: Path): fs2.Stream[F, Nothing]
 
-/** Companion object providing a concrete implementation of the `ScalaDocGenerator` trait.
-  * It integrates dependencies such as OpenAI to handle interactions with external AI APIs.
+/** Companion object providing a concrete implementation of the `ScalaDocGenerator` trait. It
+  * integrates dependencies such as OpenAI to handle interactions with external AI APIs.
   */
 object ScalaDocGenerator:
 
   /** Constructs a `ScalaDocGenerator` instance, integrating OpenAI and file I/O functionalities.
     *
-    * The created instance can handle tasks such as reading and writing code files, invoking OpenAI APIs
-    * for generating ScalaDocs and project documentation, and logging results or errors.
+    * The created instance can handle tasks such as reading and writing code files, invoking OpenAI
+    * APIs for generating ScalaDocs and project documentation, and logging results or errors.
     *
     * @param apiKey
     *   Authentication token required to interact with the OpenAI API.
     * @param F
-    *   Implicit evidence for effect capabilities such as logging, asynchronous behavior, and file handling.
+    *   Implicit evidence for effect capabilities such as logging, asynchronous behavior, and file
+    *   handling.
     * @tparam F
     *   Effect type used in this implementation (e.g., IO).
     * @return
@@ -86,7 +90,8 @@ object ScalaDocGenerator:
 
       /** Implements ScalaDoc generation for a single file.
         *
-        * Reads the Scala source file, enhances its documentation using AI (via OpenAI's API), and updates the file.
+        * Reads the Scala source file, enhances its documentation using AI (via OpenAI's API), and
+        * updates the file.
         *
         * @param path
         *   The file path pointing to the Scala source file.
@@ -98,7 +103,8 @@ object ScalaDocGenerator:
           |You are an AI assistant that specializes in Scala programming.
           |Your task is to generate detailed and accurate ScalaDoc for the provided Scala code and add comments.
           |You should not touch the code itself, only add comments and edit the existing ScalaDoc.
-          |Please do not erase brackets, parentheses, or curly braces—they must remain properly closed.
+          |Please do not erase brackets, parentheses, or curly braces—they must remain properly closed. 
+          |Important: Please format the response as plain code without any markdown formatting like scala.
           |You also need to add the comment "//The documentation in this file has been generated via Generative AI" at the top of the file.
           |
           |Here is the code: ${content.value}
@@ -136,7 +142,9 @@ object ScalaDocGenerator:
 
         processContent
           .through(text.utf8.encode) // Encode content as UTF-8.
-          .through(Files[F].writeAll(outputPath)) // Write intermediate results to the temporary file.
+          .through(
+            Files[F].writeAll(outputPath)
+          ) // Write intermediate results to the temporary file.
           .onFinalizeCase {
             case Succeeded =>
               // Replace the original file if processing succeeds.
@@ -145,11 +153,12 @@ object ScalaDocGenerator:
                 Logger[F].info(s"Successfully updated ScalaDoc for ${path.fileName}")
             case _ =>
               // Clean up temporary files if something goes wrong.
-              Files[F].deleteIfExists(outputPath) *> 
-              Logger[F].warn(s"Failed to process ${path.fileName}")
+              Files[F].deleteIfExists(outputPath) *>
+                Logger[F].warn(s"Failed to process ${path.fileName}")
           }
 
-      /** Implements README generation based on the contents of all Scala files in the project directory.
+      /** Implements README generation based on the contents of all Scala files in the project
+        * directory.
         *
         * @param path
         *   Root directory of the Scala project.
@@ -194,7 +203,9 @@ object ScalaDocGenerator:
 
         processContent
           .through(text.utf8.encode) // Encode to UTF-8 bytes.
-          .through(Files[F].writeAll(Path("./README.md"), Flags.Write)) // Write the README to a file.
+          .through(
+            Files[F].writeAll(Path("./README.md"), Flags.Write)
+          ) // Write the README to a file.
 
       /** Processes all files in the project directory, generating enriched ScalaDocs for each.
         *

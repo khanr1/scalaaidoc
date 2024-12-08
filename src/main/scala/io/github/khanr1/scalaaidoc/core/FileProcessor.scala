@@ -92,7 +92,7 @@ object FileProcessor:
         Files[F]
           .readAll(path)
           .through(text.utf8.decode)
-          .map(FileContent(_))
+          .map(FileContent(_)) // Wrap the file content into FileContent
           .evalTap(_ => Logger[F].info(s"File read in ${(System.nanoTime() - start) / 1e6} ms"))
 
       /** Filters a stream of paths to include only Scala files.
