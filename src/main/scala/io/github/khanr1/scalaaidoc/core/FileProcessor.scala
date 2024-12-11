@@ -16,6 +16,7 @@ import fs2.text
 import fs2.text.utf8
 import io.circe.{Encoder, Decoder}
 import org.typelevel.log4cats.Logger
+import cats.data.EitherT
 
 /** Trait representing a file processor capable of processing Scala files.
   *
@@ -88,12 +89,10 @@ object FileProcessor:
         *   A stream of `FileContent` objects wrapping the file's content.
         */
       private def decodeAndMapToFileContent(path: Path): Stream[F, FileContent] =
-        val start = System.nanoTime() // Record the start time for logging duration
         Files[F]
-          .readAll(path)
-          .through(text.utf8.decode)
+          .readAll(path) // Reads file content as a binary stream
+          .through(text.utf8.decode) // Decodes binary to UTF-8 text
           .map(FileContent(_)) // Wrap the file content into FileContent
-          .evalTap(_ => Logger[F].info(s"File read in ${(System.nanoTime() - start) / 1e6} ms"))
 
       /** Filters a stream of paths to include only Scala files.
         *
@@ -117,17 +116,36 @@ object FileProcessor:
         * @return
         *   A stream of `FileContent` containing the file's data if it has a valid extension.
         */
-      override def readScalaFile(path: Path): fs2.Stream[F, FileContent] =
-        // Validate `.scala` extension
-        if path.extName == ".scala" then decodeAndMapToFileContent(path)
+      private def validateScalaPath(path: Path): fs2.Stream[F, Path] =
+        if (path.extName == ".scala") then fs2.Stream.emit(path)
         else
-          fs2.Stream
-            .raiseError(
-              new FileProcessorError.InvalidPathError(
-                s"The path does not lead to a scala file: $path"
-              )
+          fs2.Stream.raiseError(
+            new FileProcessorError.InvalidPathError(
+              s"The given path : $path does not lead to a Scala file."
             )
-            .handleErrorWith(e => fs2.Stream.raiseError(e))
+          )
+
+      /** Validates whether the given path is a directory.
+        *
+        * This function checks if the provided path is a valid directory before proceeding with a
+        * directory-related operation.
+        *
+        * @param path
+        *   The path to validate as a directory.
+        * @return
+        *   A stream with the path if it's a valid directory, or an error stream otherwise.
+        */
+      private def validateDirectoryPath(path: Path): fs2.Stream[F, Path] =
+        fs2.Stream.eval(Files[F].isDirectory(path)).flatMap { b =>
+          b match
+            case true => fs2.Stream.emit(path)
+            case false =>
+              fs2.Stream
+                .raiseError(FileProcessorError.DirectoryError(s"Path is not a directory: $path"))
+        }
+
+      override def readScalaFile(path: Path): fs2.Stream[F, FileContent] = validateScalaPath(path)
+        .flatMap(validatedPath => decodeAndMapToFileContent(path))
 
       /** Processes all `.scala` files within a directory and its subdirectories.
         *
@@ -142,24 +160,16 @@ object FileProcessor:
         */
       override def readAllScalaFiles(path: Path): fs2.Stream[F, (Path, FileContent)] =
         // Log directory validation
-        fs2.Stream.eval(Logger[F].info(s"Checking if the given path is a directory")) *>
-          fs2.Stream.eval { Files[F].isDirectory(path) }.flatMap {
-            case true =>
-              Files[F]
-                .walk(path) // Recursively walk through the directory
-                .through(filterScalaFiles) // Filter only `.scala` files
-                .flatMap { path =>
-                  decodeAndMapToFileContent(path).map(content => (path, content))
-                }
-                .evalTap { (path, content) =>
-                  Logger[F].info(s"Starting to process file ${path.fileName}")
-                }
-            case false =>
-              fs2.Stream
-                .raiseError[F](
-                  FileProcessorError.DirectoryError(s"The path: $path is not a directory")
-                )
-          }
+        validateDirectoryPath(path).flatMap { validatedPath =>
+          Files[F]
+            .walk(validatedPath) // Recursively walk through the directory
+            .through(filterScalaFiles) // Filter only `.scala` files
+            .map { filteredPath =>
+              fs2.Stream.eval(Logger[F].info(s"Processing file: $filteredPath")) *>
+                decodeAndMapToFileContent(filteredPath).map(content => (filteredPath, content))
+            }
+            .parJoin(5) // Parallelize reading up to 5 concurrent tasks
+        }
     }
 
 /** Opaque type representing the content of a file as a string.

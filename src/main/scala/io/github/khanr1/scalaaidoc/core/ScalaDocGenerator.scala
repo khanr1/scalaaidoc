@@ -1,6 +1,6 @@
 //The documentation in this file has been generated via Generative AI
 
-// Additional comments and ScalaDoc annotations have been added for better understanding and explanation.
+// Additional comments and ScalaDoc annotations have been added for clarity and improved understanding.
 
 package io.github.khanr1.scalaaidoc.core
 
@@ -19,7 +19,7 @@ import cats.syntax.validated
   *
   * This trait uses AI to generate documentation with three main functions:
   *   1. Generating ScalaDocs for a single file. 2. Generating ScalaDocs for all files in a project.
-  *      3. Creating a summarized README describing the project.
+  *      3. Creating a summarized README file describing the project.
   *
   * @tparam F
   *   A higher-kinded type representing an effect type (e.g., IO), which supports asynchronous
@@ -101,9 +101,9 @@ object ScalaDocGenerator:
         // Generates a prompt for the AI model to produce enhanced documentation for the given file.
         def prompt(content: FileContent): String = s"""
           |You are an AI assistant that specializes in Scala programming.
-          |Your task is to generate detailed and accurate ScalaDoc for the provided Scala code and add comments.
+          |Your task is to generate concise and accurate ScalaDoc for the provided Scala code and add comments.
           |You should not touch the code itself, only add comments and edit the existing ScalaDoc.
-          |Please do not erase brackets, parentheses, or curly braces—they must remain properly closed. 
+          |Please do not erase brackets, parentheses, or curly braces— make sure they are  properly closed. 
           |Important: Please format the response as plain code without any markdown formatting like scala.
           |You also need to add the comment "//The documentation in this file has been generated via Generative AI" at the top of the file.
           |
@@ -121,41 +121,51 @@ object ScalaDocGenerator:
             .readScalaFile(path)
 
         // Defines the processing pipeline for enhancing file content via AI.
-        def processContent: fs2.Stream[F, String] =
+        def processContent: fs2.Stream[F, Either[Throwable, String]] =
           streamedOpenAIResource
             .flatMap { service =>
               inputFileStream
-                .flatMap { content =>
+                .map { content =>
                   service
                     .chatCompletion(messages = List(Message(Roles.User, prompt(content))))
                     .map(_.getResponseMessage) // Extract the generated documentation.
                 }
+                .parJoin(5)
             }
-            .handleErrorWith(e =>
-              fs2.Stream.eval(
-                Logger[F].error(e.getMessage()) // Log any errors.
-              ) *> fs2.Stream.empty
+            .attempt
+            .reduce((acc, next) => // If there are multiple responses, combine them
+              (acc, next) match {
+                case (Right(a), Right(b)) => Right(a + b) // Combine valid content
+                case (Left(e), _) => Left(e) // Propagate the first error
+                case (_, Left(e)) => Left(e)
+              }
             )
 
         // Temporary file path for intermediate output, ensuring safety.
         val outputPath = Path(path.toString + ".tmp")
 
-        processContent
-          .through(text.utf8.encode) // Encode content as UTF-8.
-          .through(
-            Files[F].writeAll(outputPath)
-          ) // Write intermediate results to the temporary file.
-          .onFinalizeCase {
-            case Succeeded =>
-              // Replace the original file if processing succeeds.
-              Files[F].move(outputPath, path, CopyFlags(CopyFlag.ReplaceExisting)) *>
-                Files[F].deleteIfExists(outputPath) *>
-                Logger[F].info(s"Successfully updated ScalaDoc for ${path.fileName}")
-            case _ =>
-              // Clean up temporary files if something goes wrong.
-              Files[F].deleteIfExists(outputPath) *>
-                Logger[F].warn(s"Failed to process ${path.fileName}")
-          }
+        processContent.flatMap {
+          case Right(response) =>
+            fs2.Stream
+              .emit(response) // Proceed with valid responses
+              .through(text.utf8.encode)
+              .through(Files[F].writeAll(outputPath))
+              .onFinalizeCase {
+                case Succeeded =>
+                  Files[F].move(outputPath, path, CopyFlags(CopyFlag.ReplaceExisting)) *>
+                    Logger[F].info(s"Successfully updated ScalaDoc for ${path.fileName}")
+                case _ =>
+                  Files[F].deleteIfExists(outputPath) *> Logger[F].warn(
+                    s"Failed to finalize file for ${path.fileName}"
+                  )
+              }
+          case Left(error) =>
+            fs2.Stream.eval(
+              Logger[F].error(error)(
+                s"Skipping file ${path.fileName} due to processing error: ${error.getMessage()}"
+              )
+            ) *> fs2.Stream.empty // Skip the write for this file
+        }
 
       /** Implements README generation based on the contents of all Scala files in the project
         * directory.
@@ -219,5 +229,5 @@ object ScalaDocGenerator:
             .readAllScalaFiles(path)
 
         // Process each file's path and content to enhance its ScalaDocs.
-        inputFileStream.flatMap((path, content) => generateScalaDoc(path))
+        inputFileStream.map((path, content) => generateScalaDoc(path)).parJoin(5)
     }

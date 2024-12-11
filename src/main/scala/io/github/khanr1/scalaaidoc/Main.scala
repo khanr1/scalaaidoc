@@ -1,4 +1,4 @@
-// The documentation in this file has been generated via Generative AI
+//The documentation in this file has been generated via Generative AI
 package io.github.khanr1
 package scalaaidoc
 
@@ -44,11 +44,12 @@ object Main extends IOApp.Simple:
     * source.
     *
     * @return
-    *   An `fs2.Stream` containing the OpenAI configuration object with credentials necessary for API calls.
+    *   An `fs2.Stream` containing the OpenAI configuration object with credentials necessary for
+    *   API calls.
     */
   val apikey: fs2.Stream[IO, OpenAIConfig] = fs2.Stream.eval(loadOpenAIConfig().load[IO])
 
-  /** Represents the input path where Scala sources are located. 
+  /** Represents the input path where Scala sources are located.
     *
     * This path is considered the root directory for source code file processing.
     */
@@ -62,17 +63,19 @@ object Main extends IOApp.Simple:
     * Uses the OpenAI API to process and generate the documentation from source files sequentially.
     *
     * @return
-    *   An `IO[Unit]` effect that evaluates and generates ScalaDocs for the Scala files in the specified directory.
+    *   An `IO[Unit]` effect that evaluates and generates ScalaDocs for the Scala files in the
+    *   specified directory.
     */
   def generateScalaDocs: IO[Unit] = apikey
     .flatMap { key => ScalaDocGenerator.make[IO](key.apiKey).generateAllScalaDoc(inputPath) }
     .compile
     .drain
 
-  /** Handles the functionality to generate a ReadMe.md file based on the Scala source files in
-    * the `inputPath`.
+  /** Handles the functionality to generate a ReadMe.md file based on the Scala source files in the
+    * `inputPath`.
     *
-    * Combines information from source files and presents it in the form of a structured README file.
+    * Combines information from source files and presents it in the form of a structured README
+    * file.
     *
     * @return
     *   An `IO[Unit]` effect that generates the ReadMe.md document and completes once it is created.
@@ -84,8 +87,8 @@ object Main extends IOApp.Simple:
 
   /** Runs the main menu loop to process user input and execute corresponding functionality.
     *
-    * Provides menu-driven logic, allowing users to interact with the application via a choice-based interface.
-    * Continuously shows the menu options until the user chooses to exit the application.
+    * Provides menu-driven logic, allowing users to interact with the application via a choice-based
+    * interface. Continuously shows the menu options until the user chooses to exit the application.
     *
     * @return
     *   An `IO[Unit]` effect that continuously handles the menu-driven execution.
@@ -110,7 +113,7 @@ object Main extends IOApp.Simple:
         case 1 => generateScalaDocs *> menuLoop // Option 1: Generate ScalaDoc, then loop back
         case 2 => generateReadME *> menuLoop // Option 2: Generate README, then loop back
         case 3 => IO.println("Goodbye!") // Option 3: End the application
-        case _ => 
+        case _ =>
           IO.println(
             "Wrong input. Enter your choice (1,2 or 3)"
           ) *> menuLoop // Handle invalid input gracefully and loop back
@@ -120,7 +123,8 @@ object Main extends IOApp.Simple:
 
   /** The application entry point.
     *
-    * This starts the menu loop provided by the `menuLoop` function, allowing users to interact with the application.
+    * This starts the menu loop provided by the `menuLoop` function, allowing users to interact with
+    * the application.
     *
     * @return
     *   An `IO[Unit]` effect that represents the application's main entry point.
