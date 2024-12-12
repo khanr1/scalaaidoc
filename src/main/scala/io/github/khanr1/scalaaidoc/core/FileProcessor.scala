@@ -1,4 +1,4 @@
-//The documentation in this file has been generated via Generative AI
+// The documentation in this file has been generated via Generative AI
 
 /** Root package for core utilities in the Scala AI documentation library.
   *
@@ -17,6 +17,7 @@ import fs2.text.utf8
 import io.circe.{Encoder, Decoder}
 import org.typelevel.log4cats.Logger
 import cats.data.EitherT
+import cats.effect.kernel.Resource.ExitCase.{Errored, Succeeded, Canceled}
 
 /** Trait representing a file processor capable of processing Scala files.
   *
@@ -89,10 +90,21 @@ object FileProcessor:
         *   A stream of `FileContent` objects wrapping the file's content.
         */
       private def decodeAndMapToFileContent(path: Path): Stream[F, FileContent] =
-        Files[F]
-          .readAll(path) // Reads file content as a binary stream
-          .through(text.utf8.decode) // Decodes binary to UTF-8 text
-          .map(FileContent(_)) // Wrap the file content into FileContent
+        // Log the start of reading
+        Stream.eval(Logger[F].info(s"Starting to read ${path.fileName}")) *>
+          Files[F]
+            .readAll(path) // Reads file content as a binary stream
+            .through(text.utf8.decode) // Decodes binary to UTF-8 text
+            .map(FileContent(_)) // Wrap the file content into FileContent
+            .onFinalizeCase {
+              // Handle potential finalization scenarios
+              case Succeeded =>
+                Logger[F].info(s"Finished extracting content for ${path.fileName}")
+              case Errored(e) =>
+                Logger[F].error(e)(s"Failed to extract content for ${path.fileName}")
+              case Canceled =>
+                Logger[F].warn(s"Extraction was canceled for ${path.fileName}")
+            }
 
       /** Filters a stream of paths to include only Scala files.
         *
@@ -119,6 +131,7 @@ object FileProcessor:
       private def validateScalaPath(path: Path): fs2.Stream[F, Path] =
         if (path.extName == ".scala") then fs2.Stream.emit(path)
         else
+          // Raise an error for invalid file extension
           fs2.Stream.raiseError(
             new FileProcessorError.InvalidPathError(
               s"The given path : $path does not lead to a Scala file."
@@ -140,6 +153,7 @@ object FileProcessor:
           b match
             case true => fs2.Stream.emit(path)
             case false =>
+              // Raise an error if the given path is not a directory
               fs2.Stream
                 .raiseError(FileProcessorError.DirectoryError(s"Path is not a directory: $path"))
         }
@@ -159,7 +173,6 @@ object FileProcessor:
         *   A stream of tuples `(Path, FileContent)` for each `.scala` file found.
         */
       override def readAllScalaFiles(path: Path): fs2.Stream[F, (Path, FileContent)] =
-        // Log directory validation
         validateDirectoryPath(path).flatMap { validatedPath =>
           Files[F]
             .walk(validatedPath) // Recursively walk through the directory
