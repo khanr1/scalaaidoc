@@ -1,4 +1,4 @@
-//The documentation in this file has been generated via Generative AI
+// The documentation in this file has been generated via Generative AI
 
 // Additional comments and ScalaDoc annotations have been added for clarity and improved understanding.
 
@@ -12,7 +12,6 @@ import fs2.io.file.{Path, Files, Flags, CopyFlags, CopyFlag}
 import io.github.khanr1.scalaopenai.{OpenAI, OpenAIService, Roles}
 import io.github.khanr1.scalaopenai.chat.Message
 import org.typelevel.log4cats.Logger
-import cats.syntax.validated
 
 /** Trait defining the contract for generating ScalaDocs and project documentation for Scala source
   * files.

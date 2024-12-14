@@ -62,12 +62,14 @@ object Main extends IOApp.Simple:
     *
     * Uses the OpenAI API to process and generate the documentation from source files sequentially.
     *
+    * @param path
+    *   The directory path to process Scala source files.
     * @return
     *   An `IO[Unit]` effect that evaluates and generates ScalaDocs for the Scala files in the
     *   specified directory.
     */
-  def generateScalaDocs: IO[Unit] = apikey
-    .flatMap { key => ScalaDocGenerator.make[IO](key.apiKey).generateAllScalaDoc(inputPath) }
+  def generateScalaDocs(path: Path): IO[Unit] = apikey
+    .flatMap { key => ScalaDocGenerator.make[IO](key.apiKey).generateAllScalaDoc(path) }
     .compile
     .drain
 
@@ -77,11 +79,13 @@ object Main extends IOApp.Simple:
     * Combines information from source files and presents it in the form of a structured README
     * file.
     *
+    * @param path
+    *   The directory path to process for generating the README file.
     * @return
     *   An `IO[Unit]` effect that generates the ReadMe.md document and completes once it is created.
     */
-  def generateReadME: IO[Unit] = apikey
-    .flatMap(key => ScalaDocGenerator.make[IO](key.apiKey).generateReadMe(inputPath))
+  def generateReadME(path: Path): IO[Unit] = apikey
+    .flatMap(key => ScalaDocGenerator.make[IO](key.apiKey).generateReadMe(path))
     .compile
     .drain
 
@@ -105,13 +109,33 @@ object Main extends IOApp.Simple:
     def getChoice: IO[Int] =
       IO(Option(StdIn.readLine("Enter you Choice: ")).flatMap(_.toIntOption).getOrElse(-1))
 
+    /** Reads the directory path input from the user.
+      *
+      * Prompts the user to enter a file path and converts the string input into a `Path` object.
+      *
+      * @return
+      *   An `IO[Path]` effect that contains the directory path provided by the user.
+      */
+    def getPath: IO[Path] =
+      IO {
+        val input = StdIn.readLine("enter path")
+        Path(input)
+      }
     // Continuously performs user input parsing and associated action handling.
     for
       _ <- showMenu // Show menu options
       choice <- getChoice // Get user choice
       _ <- choice match {
-        case 1 => generateScalaDocs *> menuLoop // Option 1: Generate ScalaDoc, then loop back
-        case 2 => generateReadME *> menuLoop // Option 2: Generate README, then loop back
+        case 1 =>
+          for
+            path <- getPath
+            _ <- generateScalaDocs(path) *> menuLoop
+          yield () // Option 1: Generate ScalaDoc, then loop back
+        case 2 =>
+          for
+            path <- getPath
+            _ <- generateReadME(path) *> menuLoop
+          yield () // Option 2: Generate README, then loop back
         case 3 => IO.println("Goodbye!") // Option 3: End the application
         case _ =>
           IO.println(

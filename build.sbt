@@ -3,6 +3,7 @@ import Dependencies.*
 ThisBuild / version := "0.0.1-SNAPSHOT"
 ThisBuild / scalaVersion := "3.3.3"
 ThisBuild / organization := "io.github.khanr1"
+ThisBuild / crossScalaVersions := Seq("3.3.0", "2.12.18")
 
 lazy val `scalaai-doc` =
   project
