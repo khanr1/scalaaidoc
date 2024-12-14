@@ -62,8 +62,6 @@ object Main extends IOApp.Simple:
     *
     * Uses the OpenAI API to process and generate the documentation from source files sequentially.
     *
-    * @param path
-    *   The directory path to process Scala source files.
     * @return
     *   An `IO[Unit]` effect that evaluates and generates ScalaDocs for the Scala files in the
     *   specified directory.
@@ -79,8 +77,6 @@ object Main extends IOApp.Simple:
     * Combines information from source files and presents it in the form of a structured README
     * file.
     *
-    * @param path
-    *   The directory path to process for generating the README file.
     * @return
     *   An `IO[Unit]` effect that generates the ReadMe.md document and completes once it is created.
     */
@@ -109,17 +105,10 @@ object Main extends IOApp.Simple:
     def getChoice: IO[Int] =
       IO(Option(StdIn.readLine("Enter you Choice: ")).flatMap(_.toIntOption).getOrElse(-1))
 
-    /** Reads the directory path input from the user.
-      *
-      * Prompts the user to enter a file path and converts the string input into a `Path` object.
-      *
-      * @return
-      *   An `IO[Path]` effect that contains the directory path provided by the user.
-      */
     def getPath: IO[Path] =
       IO {
-        val input = StdIn.readLine("enter path")
-        Path(input)
+        val input = StdIn.readLine("enter path: ")
+        Path(input.trim())
       }
     // Continuously performs user input parsing and associated action handling.
     for
